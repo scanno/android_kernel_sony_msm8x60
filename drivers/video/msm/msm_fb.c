@@ -383,17 +383,6 @@ static void msm_fb_remove_sysfs(struct platform_device *pdev)
 
 static void bl_workqueue_handler(struct work_struct *work);
 
-static void msm_fb_shutdown(struct platform_device *pdev)
-{
-       struct msm_fb_data_type *mfd = platform_get_drvdata(pdev);
-       if (IS_ERR_OR_NULL(mfd)) {
-               pr_err("MFD is Null");
-               return;
-       }
-       lock_fb_info(mfd->fbi);
-       msm_fb_release_all(mfd->fbi, true);
-       unlock_fb_info(mfd->fbi);
-}
 static int msm_fb_probe(struct platform_device *pdev)
 {
 	struct msm_fb_data_type *mfd;
@@ -600,6 +589,28 @@ static int msm_fb_suspend(struct platform_device *pdev, pm_message_t state)
 #else
 #define msm_fb_suspend NULL
 #endif
+
+static void msm_fb_shutdown(struct platform_device *pdev)
+{
+	struct msm_fb_data_type *mfd;
+	int ret = 0;
+	MSM_FB_DEBUG("msm_fb_shutdown\n");
+
+	mfd = (struct msm_fb_data_type *)platform_get_drvdata(pdev);
+	if (mfd) {
+		if (mfd->op_enable) {
+			ret = msm_fb_blank_sub(FB_BLANK_POWERDOWN, mfd->fbi,
+					     mfd->op_enable);
+		}
+
+		if (ret)
+			MSM_FB_INFO
+				("msm_fb_shutdown: can't turn off display!\n");
+
+		mfd->op_enable = FALSE;
+		mdp_pipe_ctrl(MDP_MASTER_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
+	}
+}
 
 static int msm_fb_suspend_sub(struct msm_fb_data_type *mfd)
 {

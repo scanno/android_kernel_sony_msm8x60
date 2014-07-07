@@ -67,6 +67,11 @@ CREATE_IPV4_FILE(tcp_spec_if_rmem_max, sysctl_tcp_rmem[5]);
 
 CREATE_IPV4_FILE(tcp_delack_seg, sysctl_tcp_delack_seg);
 CREATE_IPV4_FILE(tcp_use_userconfig, sysctl_tcp_use_userconfig);
+#ifdef CONFIG_SOMC_TCP_SPEC_IF_BUFFER_SIZE
+CREATE_IPV4_FILE(tcp_spec_if_rmem_min, sysctl_tcp_rmem[3]);
+CREATE_IPV4_FILE(tcp_spec_if_rmem_def, sysctl_tcp_rmem[4]);
+CREATE_IPV4_FILE(tcp_spec_if_rmem_max, sysctl_tcp_rmem[5]);
+#endif
 
 static struct attribute *ipv4_attrs[] = {
 	&tcp_wmem_min_attr.attr,
@@ -87,6 +92,11 @@ static struct attribute *ipv4_attrs[] = {
 #endif
 	&tcp_delack_seg_attr.attr,
 	&tcp_use_userconfig_attr.attr,
+#ifdef CONFIG_SOMC_TCP_SPEC_IF_BUFFER_SIZE
+	&tcp_spec_if_rmem_min_attr.attr,
+	&tcp_spec_if_rmem_def_attr.attr,
+	&tcp_spec_if_rmem_max_attr.attr,
+#endif
 	NULL
 };
 

@@ -167,6 +167,7 @@ static void __init draw_logo(void)
 {
 	struct fb_info *fb_info;
 	struct delayed_work *fb_work;
+
 	fb_info = registered_fb[0];
 	if (fb_info && fb_info->fbops->fb_open) {
 		printk(KERN_INFO "Drawing logo.\n");

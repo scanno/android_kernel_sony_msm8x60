@@ -326,6 +326,12 @@ board-viskan-all-objs += board-viskan.o board-viskan-display.o board-viskan-stor
 obj-$(CONFIG_MACH_VISKAN_HUASHAN) += board-viskan-all.o board-viskan_huashan-gpiomux.o board-viskan_huashan-pmic.o board-viskan_huashan-regulator.o bms-batterydata-sleipner.o
 obj-$(CONFIG_MACH_VISKAN_HUASHAN) += board-viskan_huashan-camera.o
 
+#viskan
+board-viskan-all-objs += board-viskan.o board-viskan-display.o board-viskan-storage.o
+
+obj-$(CONFIG_MACH_VISKAN_HUASHAN) += board-viskan-all.o board-viskan_huashan-gpiomux.o board-viskan_huashan-pmic.o board-viskan_huashan-regulator.o bms-batterydata-sleipner.o
+obj-$(CONFIG_MACH_VISKAN_HUASHAN) += board-viskan_huashan-camera.o
+
 CFLAGS_msm_vibrator.o += -Idrivers/staging/android
 CFLAGS_board-9615.o += -Idrivers/usb/gadget
 
@@ -416,6 +422,8 @@ endif
 obj-$(CONFIG_MSM_CPU_PWRCTL) +=  msm_cpu_pwrctl.o
 
 obj-$(CONFIG_ARCH_RANDOM) += early_random.o
+
+obj-$(CONFIG_HAS_MACH_MEMUTILS) += memutils/
 
 obj-$(CONFIG_RAMDUMP_TAGS) += board-rdtags.o
 CFLAGS_board-rdtags.o	:= \
