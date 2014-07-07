@@ -502,7 +502,7 @@ static int mipi_dsi_probe(struct platform_device *pdev)
 	 */
 	mfd->panel_info = pdata->panel_info;
 	pinfo = &mfd->panel_info;
-
+	esc_byte_ratio = pinfo->mipi.esc_byte_ratio;
 	if (mfd->panel_info.type == MIPI_VIDEO_PANEL)
 		mfd->dest = DISPLAY_LCDC;
 	else
@@ -604,8 +604,6 @@ static int mipi_dsi_probe(struct platform_device *pdev)
 		goto mipi_dsi_probe_err;
 
 	pdev_list[pdev_list_cnt++] = pdev;
-
-	esc_byte_ratio = pinfo->mipi.esc_byte_ratio;
 
 	if (pinfo->pdest != DISPLAY_4) {
 		if (!mfd->cont_splash_done)

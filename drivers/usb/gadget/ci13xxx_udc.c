@@ -2,6 +2,7 @@
  * ci13xxx_udc.c - MIPS USB IP core family device controller
  *
  * Copyright (C) 2008 Chipidea - MIPS Technologies, Inc. All rights reserved.
+ * Copyright (c) 2012 Sony Mobile Communications AB.
  *
  * Author: David Lopo
  *
@@ -3295,6 +3296,7 @@ static int ci13xxx_vbus_session(struct usb_gadget *_gadget, int is_active)
 
 	if (gadget_ready) {
 		if (is_active) {
+			dev_info(udc->gadget.dev.parent, "vbus online\n");
 			pm_runtime_get_sync(&_gadget->dev);
 			hw_device_reset(udc);
 			if (udc->softconnect)
@@ -3333,12 +3335,20 @@ static int ci13xxx_pullup(struct usb_gadget *_gadget, int is_active)
 		spin_unlock_irqrestore(&udc->lock, flags);
 		return 0;
 	}
-	spin_unlock_irqrestore(&udc->lock, flags);
 
-	if (is_active)
+	if (is_active) {
 		hw_device_state(udc, udc->ep0out.qh.dma);
-	else
-		hw_device_state(udc, 0);
+	} else {
+		/*
+		* Flush transactions of ep0 to make sure a empty
+		* queue at next connection.
+		*/
+		_ep_nuke(&udc->ep0out);
+		_ep_nuke(&udc->ep0in);
+		hw_device_state(0);
+	}
+
+	spin_unlock_irqrestore(&udc->lock, flags);
 
 	return 0;
 }
