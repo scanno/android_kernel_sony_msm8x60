@@ -43,6 +43,7 @@
 #include <linux/sysctl.h>
 #include <linux/oom.h>
 #include <linux/prefetch.h>
+#include <linux/debugfs.h>
 
 #include <asm/tlbflush.h>
 #include <asm/div64.h>
@@ -191,6 +192,38 @@ static unsigned long zone_nr_lru_pages(struct mem_cgroup_zone *mz,
 	return zone_page_state(mz->zone, NR_LRU_BASE + lru);
 }
 
+struct dentry *debug_file;
+
+static int debug_shrinker_show(struct seq_file *s, void *unused)
+{
+	struct shrinker *shrinker;
+	struct shrink_control sc;
+
+	sc.gfp_mask = -1;
+	sc.nr_to_scan = 0;
+
+	down_read(&shrinker_rwsem);
+	list_for_each_entry(shrinker, &shrinker_list, list) {
+		int num_objs;
+
+		num_objs = shrinker->shrink(shrinker, &sc);
+		seq_printf(s, "%pf %d\n", shrinker->shrink, num_objs);
+	}
+	up_read(&shrinker_rwsem);
+	return 0;
+}
+
+static int debug_shrinker_open(struct inode *inode, struct file *file)
+{
+        return single_open(file, debug_shrinker_show, inode->i_private);
+}
+
+static const struct file_operations debug_shrinker_fops = {
+        .open = debug_shrinker_open,
+        .read = seq_read,
+        .llseek = seq_lseek,
+        .release = single_release,
+};
 
 /*
  * Add a shrinker callback to be called from the vm
@@ -203,6 +236,15 @@ void register_shrinker(struct shrinker *shrinker)
 	up_write(&shrinker_rwsem);
 }
 EXPORT_SYMBOL(register_shrinker);
+
+static int __init add_shrinker_debug(void)
+{
+	debugfs_create_file("shrinker", 0644, NULL, NULL,
+			    &debug_shrinker_fops);
+	return 0;
+}
+
+late_initcall(add_shrinker_debug);
 
 /*
  * Remove one
@@ -672,7 +714,7 @@ static enum page_references page_check_references(struct page *page,
 		return PAGEREF_RECLAIM;
 
 	if (referenced_ptes) {
-		if (PageAnon(page))
+		if (PageSwapBacked(page))
 			return PAGEREF_ACTIVATE;
 		/*
 		 * All mapped pages start out with page table
@@ -734,7 +776,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
 		struct address_space *mapping;
 		struct page *page;
 		int may_enter_fs;
-		enum page_references references = PAGEREF_RECLAIM_CLEAN;
+		enum page_references references = PAGEREF_RECLAIM;
 
 		cond_resched();
 
@@ -978,6 +1020,8 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
 		.gfp_mask = GFP_KERNEL,
 		.priority = DEF_PRIORITY,
 		.may_unmap = 1,
+		/* Doesn't allow to write out dirty page */
+		.may_writepage = 0,
 	};
 	unsigned long ret, dummy1, dummy2;
 	struct page *page, *next;
@@ -2118,7 +2162,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
 		count_vm_event(ALLOCSTALL);
 
 	do {
-		vmpressure_prio(sc->gfp_mask, sc->target_mem_cgroup, priority);
+		vmpressure_prio(sc->gfp_mask, sc->target_mem_cgroup, sc->priority);
 		sc->nr_scanned = 0;
 		aborted_reclaim = shrink_zones(zonelist, sc);
 
@@ -2895,6 +2939,8 @@ static int kswapd(void *p)
 						&balanced_classzone_idx);
 		}
 	}
+
+	current->reclaim_state = NULL;
 	return 0;
 }
 
@@ -3036,14 +3082,17 @@ int kswapd_run(int nid)
 }
 
 /*
- * Called by memory hotplug when all memory in a node is offlined.
+ * Called by memory hotplug when all memory in a node is offlined.  Caller must
+ * hold lock_memory_hotplug().
  */
 void kswapd_stop(int nid)
 {
 	struct task_struct *kswapd = NODE_DATA(nid)->kswapd;
 
-	if (kswapd)
+	if (kswapd) {
 		kthread_stop(kswapd);
+		NODE_DATA(nid)->kswapd = NULL;
+	}
 }
 
 static int __init kswapd_init(void)
