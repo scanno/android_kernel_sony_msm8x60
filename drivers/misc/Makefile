@@ -83,3 +83,4 @@ obj-$(CONFIG_RAMDUMP_TAGS) += rdtags.o
 obj-$(CONFIG_LM3561)		+= lm3561.o
 obj-$(CONFIG_RAMDUMP_CRASH_LOGS) += ramdumplogs.o
 
+obj-$(CONFIG_UID_CPUTIME) += uid_cputime.o
