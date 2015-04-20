@@ -10,6 +10,9 @@ ifeq ($(CONFIG_FB_MSM_MDP_HW),y)
 obj-y += mdp.o
 obj-$(CONFIG_MDP_DEBUG_FS) += mdp_debugfs.o
 
+# MDP Arbitrator
+obj-$(CONFIG_FB_MSM_MDP_ARB) += mdp_arb.o
+
 ifeq ($(CONFIG_FB_MSM_MDP40),y)
 obj-y += mdp4_util.o
 else
