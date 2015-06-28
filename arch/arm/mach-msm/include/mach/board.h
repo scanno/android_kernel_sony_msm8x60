@@ -654,6 +654,10 @@ int msm_add_sdcc(unsigned int controller,
 		struct mmc_platform_data *plat);
 int msm_add_uio(void);
 
+#ifdef CONFIG_MMC_MSM_SDC1_SUPPORT
+int msm_add_uio(void);
+#endif
+
 void msm_pm_register_irqs(void);
 struct msm_usb_host_platform_data;
 int msm_add_host(unsigned int host,

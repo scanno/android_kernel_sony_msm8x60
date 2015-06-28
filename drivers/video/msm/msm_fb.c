@@ -5,6 +5,7 @@
  *
  * Copyright (C) 2007 Google Incorporated
  * Copyright (c) 2008-2016 The Linux Foundation. All rights reserved.
+ * Copyright (C) 2013 Sony Mobile Communications AB.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -2153,6 +2154,12 @@ static int msm_fb_pan_display_sub(struct fb_var_screeninfo *var,
 	struct mdp_dirty_region dirty;
 	struct mdp_dirty_region *dirtyPtr = NULL;
 	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)info->par;
+	struct msm_fb_panel_data *pdata = (struct msm_fb_panel_data *)mfd->pdev->dev.platform_data;
+
+	#ifdef CONFIG_FB_MSM_RECOVER_PANEL
+	if (mutex_is_locked(&mfd->nvrw_prohibit_draw))
+		return 0;
+	#endif
 
 	/*
 	 * If framebuffer is 2, io pen display is not allowed.
@@ -2235,10 +2242,14 @@ static int msm_fb_pan_display_sub(struct fb_var_screeninfo *var,
 		}
 	}
 
-	mdp_set_dma_pan_info(info, dirtyPtr,
-			     (var->activate & FB_ACTIVATE_VBL));
-	/* async call */
-
+	if (pdata->power_on_panel_at_pan) {
+		/* No vsync allowed at first pan since it will hang
+		   during dma transfer */
+		mdp_set_dma_pan_info(info, dirtyPtr, FALSE);
+	} else {
+		mdp_set_dma_pan_info(info, dirtyPtr,
+					(var->activate == FB_ACTIVATE_VBL));
+	}
 	mdp_dma_pan_update(info);
 	msm_fb_signal_timeline(mfd);
 	if (mdp4_unmap_sec_resource(mfd))
@@ -3436,6 +3447,11 @@ static int msmfb_overlay_play_wait(struct fb_info *info, void *p, int user)
 	if (mfd->overlay_play_enable == 0)      /* nothing to do */
 		return 0;
 
+	#ifdef CONFIG_FB_MSM_RECOVER_PANEL
+	if (mutex_is_locked(&mfd->nvrw_prohibit_draw))
+		return 0;
+	#endif
+
 	if (user) {
 		ret = copy_from_user(&req, p, sizeof(req));
 		if (ret) {
@@ -3459,6 +3475,11 @@ static int msmfb_overlay_play(struct fb_info *info, void *p, int user)
 
 	if (mfd->overlay_play_enable == 0)	/* nothing to do */
 		return 0;
+
+	#ifdef CONFIG_FB_MSM_RECOVER_PANEL
+	if (mutex_is_locked(&mfd->nvrw_prohibit_draw))
+		return 0;
+	#endif
 
 	if (user) {
 		ret = copy_from_user(&req, p, sizeof(req));
@@ -3517,6 +3538,7 @@ static int msmfb_overlay_play_enable(struct fb_info *info, void *p, int user)
 	return 0;
 }
 
+#ifdef CONFIG_FB_MSM_OVERLAY0_WRITEBACK
 static int msmfb_overlay_blt(struct fb_info *info, void *p, int user)
 {
 	int     ret;
@@ -3537,6 +3559,16 @@ static int msmfb_overlay_blt(struct fb_info *info, void *p, int user)
 	return ret;
 }
 
+#else
+static int msmfb_overlay_blt(struct fb_info *info, unsigned long *argp)
+{
+	return 0;
+}
+static int msmfb_overlay_blt_off(struct fb_info *info, unsigned long *argp)
+{
+	return 0;
+}
+#endif
 #ifdef CONFIG_FB_MSM_WRITEBACK_MSM_PANEL
 static int msmfb_overlay_ioctl_writeback_init(struct fb_info *info)
 {
@@ -4563,6 +4595,15 @@ struct platform_device *msm_fb_add_device(struct platform_device *pdev)
 	mfd->iclient = iclient;
 	/* link to the latest pdev */
 	mfd->pdev = this_dev;
+
+	/* link to the panel pdev */
+	mfd->panel_pdev = pdev;
+#ifdef CONFIG_DEBUG_FS
+	mutex_init(&mfd->power_lock);
+#endif
+#ifdef CONFIG_FB_MSM_RECOVER_PANEL
+	mutex_init(&mfd->nvrw_prohibit_draw);
+#endif
 
 	mfd_list[mfd_list_index++] = mfd;
 	fbi_list[fbi_list_index++] = fbi;
