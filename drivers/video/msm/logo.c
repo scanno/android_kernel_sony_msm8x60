@@ -185,8 +185,7 @@ static void __init draw_logo(void)
 int __init logo_init(void)
 {
 	boolean bf_supported;
-	bf_supported = mdp4_overlay_borderfill_supported(
-	        (struct msm_fb_data_type *)mdp_rev);
+	bf_supported = true);
 
 	if (!load_565rle_image(INIT_IMAGE_FILE, bf_supported))
 		draw_logo();
