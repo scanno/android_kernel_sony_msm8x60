@@ -20,19 +20,6 @@
 #if defined(CONFIG_ARCH_MSM_KRAITMP) || defined(CONFIG_ARCH_MSM_SCORPIONMP)
 static DEFINE_PER_CPU(u32, pmu_irq_cookie);
 
-static __ref int armpmu_cpu_up(int cpu)
-{
-	int ret = 0;
-
-	if (!cpumask_test_cpu(cpu, cpu_online_mask)) {
-		ret = cpu_up(cpu);
-		if (ret)
-			pr_err("Failed to bring up CPU: %d, ret: %d\n",
-			       cpu, ret);
-	}
-	return ret;
-}
-
 static int
 multicore_request_irq(int irq, irq_handler_t *handle_irq)
 {
