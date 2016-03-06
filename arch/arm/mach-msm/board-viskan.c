@@ -1079,7 +1079,9 @@ static void __init adjust_mem_for_liquid(void)
 {
 	unsigned int i;
 
+#ifdef CONFIG_ANDROID_PMEM
 	if (!pmem_param_set) {
+#endif
 		if (machine_is_msm8960_liquid())
 			msm_ion_sf_size = MSM_LIQUID_ION_SF_SIZE;
 
@@ -1099,7 +1101,9 @@ static void __init adjust_mem_for_liquid(void)
 				}
 			}
 		}
+#ifdef CONFIG_ANDROID_PMEM
 	}
+#endif
 }
 
 static void __init reserve_mem_for_ion(enum ion_memory_types mem_type,
@@ -4299,12 +4303,18 @@ static void __init msm8960_gfx_init(void)
 
 	/* Fixup data that needs to change based on GPU ID */
 	if (cpu_is_msm8960ab()) {
-		if (SOCINFO_VERSION_MINOR(soc_platform_version) == 0)
-			kgsl_3d0_pdata->chipid = ADRENO_CHIPID(3, 2, 1, 0);
-		else
-			kgsl_3d0_pdata->chipid = ADRENO_CHIPID(3, 2, 1, 1);
-		/* 8960PRO nominal clock rate is 325Mhz instead of 320Mhz */
-		kgsl_3d0_pdata->pwrlevel[1].gpu_freq = 325000000;
+		kgsl_3d0_pdata->chipid = ADRENO_CHIPID(3, 2, 1, 0);
+		/* 8960PRO nominal clock rate is 320Mhz */
+		kgsl_3d0_pdata->pwrlevel[1].gpu_freq = 320000000;
+
+		/*
+		 * If this an A320 GPU device (MSM8960AB), then
+		 * switch the resource table to 8960AB, to reflect the
+		 * separate register and shader memory mapping used in A320.
+		 */
+
+		msm_kgsl_3d0.num_resources = kgsl_num_resources_8960ab;
+		msm_kgsl_3d0.resource = kgsl_3d0_resources_8960ab;
 	} else {
 		kgsl_3d0_pdata->iommu_count = 1;
 
@@ -5002,6 +5012,148 @@ static void __init msm8960ab_update_retention_spm(void)
 		}
 	}
 }
+
+#ifdef CONFIG_BOOT_TIME_MARKER
+#define BOOT_MARKER_MAX_LEN 20
+#define MAX_PRINT_LEN 50
+
+struct boot_marker {
+	char marker_name[BOOT_MARKER_MAX_LEN];
+	unsigned long int timer_value;
+	struct list_head list;
+};
+
+static struct boot_marker boot_marker_list;
+
+static ssize_t print_boot_markers(struct kobject *kobj,
+				struct kobj_attribute *attr,
+				char *buf)
+{
+	char *p = buf;
+	struct boot_marker *marker;
+
+	list_for_each_entry(marker, &boot_marker_list.list, list) {
+		p += scnprintf(p, MAX_PRINT_LEN, "%-22s:%ld.%03ld seconds\n",
+			marker->marker_name,
+			marker->timer_value/TIMER_KHZ,
+			(((marker->timer_value % TIMER_KHZ)
+			* 1000) / TIMER_KHZ));
+	}
+	return p-buf;
+}
+
+static ssize_t sys_write_response(struct kobject *kobj,
+				struct kobj_attribute *attr,
+				const char *buf, size_t count)
+{
+	place_marker((char *) buf);
+	return count;
+}
+
+static struct kobj_attribute bootkpi_kpi_attr = {
+	.attr = {
+		.mode = S_IRUGO,
+		.name = "kpi_values",
+	},
+	.show = &print_boot_markers,
+};
+
+static struct kobj_attribute bootkpi_marker_attr = {
+	.attr = {
+		.mode = S_IWUGO,
+		.name = "marker_entry",
+	},
+	.store = &sys_write_response,
+};
+
+static struct attribute *bootkpi_entries[] = {
+	&bootkpi_kpi_attr.attr,
+	&bootkpi_marker_attr.attr,
+	NULL,
+};
+
+static struct attribute_group bootkpi_group = {
+	.attrs = bootkpi_entries,
+};
+
+int init_marker_sys_fs(void)
+{
+	struct kobject *bootkpi_obj;
+	struct boot_marker *new_boot_marker;
+	unsigned long int timer_value;
+	int ret = 0;
+
+	bootkpi_obj = kobject_create_and_add("bootkpi", NULL);
+	if (bootkpi_obj) {
+		ret = sysfs_create_group(bootkpi_obj, &bootkpi_group);
+		if (ret >= 0) {
+			INIT_LIST_HEAD(&boot_marker_list.list);
+
+			if (strcmp(lk_splash_val, "0") == 0) {
+				pr_info(
+				"no splash screen marker value from LK\n");
+			} else {
+				new_boot_marker = kmalloc(
+						sizeof(*new_boot_marker),
+						GFP_KERNEL);
+				if (new_boot_marker == NULL)
+					return -ENOMEM;
+
+				strlcpy(new_boot_marker->marker_name,
+					"Splash Screen",
+				sizeof(new_boot_marker->marker_name));
+				if (kstrtol(lk_splash_val, 10, &timer_value))
+					return -EINVAL;
+				new_boot_marker->timer_value = timer_value;
+				INIT_LIST_HEAD(&new_boot_marker->list);
+				list_add_tail(&(new_boot_marker->list),
+						&(boot_marker_list.list));
+			}
+			new_boot_marker = kmalloc(sizeof(*new_boot_marker),
+								GFP_KERNEL);
+			if (new_boot_marker == NULL)
+				return -ENOMEM;
+
+			strlcpy(new_boot_marker->marker_name,
+					"Linux_Kernel-Start",
+					BOOT_MARKER_MAX_LEN);
+			new_boot_marker->timer_value = kernel_start_marker;
+			INIT_LIST_HEAD(&new_boot_marker->list);
+			list_add_tail(&(new_boot_marker->list),
+						&(boot_marker_list.list));
+		}
+	} else {
+		pr_err("Error creating sysfs entry\n");
+		return -ENOMEM;
+	}
+	return 0;
+}
+
+void place_marker(char *name)
+{
+	struct boot_marker *new_boot_marker;
+	unsigned long int timer_value = msm_timer_get_sclk_ticks();
+
+	pr_debug("%-22s:%ld.%03ld seconds\n", name,
+			timer_value/TIMER_KHZ,
+			((timer_value % TIMER_KHZ)
+			* 1000) / TIMER_KHZ);
+
+	new_boot_marker = kmalloc(sizeof(*new_boot_marker), GFP_KERNEL);
+	if (new_boot_marker) {
+		strlcpy(new_boot_marker->marker_name, name,
+			sizeof(new_boot_marker->marker_name));
+		new_boot_marker->timer_value = timer_value;
+		INIT_LIST_HEAD(&new_boot_marker->list);
+		list_add_tail(&(new_boot_marker->list),
+			      &(boot_marker_list.list));
+	}
+}
+#else
+void place_marker(char *name)
+{
+}
+#endif
 
 static void __init msm8960_cdp_init(void)
 {

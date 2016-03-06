@@ -1555,6 +1555,12 @@ struct platform_device msm_pil_tzapps = {
 	.id = -1,
 };
 
+struct platform_device msm_pil_dsps = {
+	.name          = "pil_dsps",
+	.id            = -1,
+	.dev.platform_data = "dsps",
+};
+
 struct platform_device msm_pil_vidc = {
 	.name = "pil_vidc",
 	.id = -1,
