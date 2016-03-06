@@ -62,6 +62,9 @@ extern struct platform_device msm8960_device_uart_gsbi5;
 extern struct platform_device msm8960_device_uart_gsbi8;
 extern struct platform_device msm8930_device_uart_gsbi10;
 extern struct platform_device msm8930_device_uart_gsbi11;
+#ifdef CONFIG_MSM_GSBI12_UART
+extern struct platform_device msm8960_device_uart_gsbi12;
+#endif
 extern struct platform_device msm8960_device_ssbi_pmic;
 extern struct platform_device msm8960_device_qup_i2c_gsbi3;
 extern struct platform_device msm8960_device_qup_i2c_gsbi4;
@@ -272,10 +275,12 @@ extern struct platform_device msm_fm_loopback;
 extern struct platform_device msm_pil_q6v3;
 extern struct platform_device msm_pil_modem;
 extern struct platform_device msm_pil_tzapps;
+extern struct platform_device msm_pil_dsps;
 extern struct platform_device msm_pil_vidc;
 extern struct platform_device msm_8960_q6_lpass;
 extern struct platform_device msm_8960_q6_mss_fw;
 extern struct platform_device msm_8960_q6_mss_sw;
+extern struct platform_device msm_8960_riva;
 extern struct platform_device msm_gss;
 
 extern struct platform_device apq8064_msm_ba_device;

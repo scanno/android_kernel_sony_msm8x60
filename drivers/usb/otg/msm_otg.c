@@ -2475,6 +2475,16 @@ static void msm_otg_init_sm(struct msm_otg *motg)
 	}
 }
 
+void msm_otg_notify_vbus_drop(void)
+{
+	struct msm_otg *motg = the_msm_otg[1];
+
+	dev_info(motg->phy.dev, "received notification of vbus drop\n");
+	set_bit(VBUS_DROP_DET, &motg->inputs);
+	queue_work(system_nrt_wq, &motg->sm_work);
+	return;
+}
+
 static void msm_otg_sm_work(struct work_struct *w)
 {
 	struct msm_otg *motg = container_of(w, struct msm_otg, sm_work);

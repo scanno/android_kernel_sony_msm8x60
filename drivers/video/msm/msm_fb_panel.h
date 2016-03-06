@@ -197,6 +197,10 @@ struct msm_panel_info {
 	__u32 yres_aligned;
 
 	enum DISPLAY_ID disp_id;
+
+	/* physical size in mm */
+	__u32 width;
+	__u32 height;
 };
 
 #define MSM_FB_SINGLE_MODE_PANEL(pinfo)		\
@@ -227,6 +231,9 @@ struct msm_fb_panel_data {
 					u32 fps_level);
 	int (*dba_reset) (struct platform_device *pdev);
 	int (*set_error_cb) (struct platform_device *pdev, panel_error_cb cb);
+
+	struct msm_panel_info *(*panel_detect) (struct msm_fb_data_type *mfd);
+	int (*update_panel) (struct platform_device *pdev);
 };
 
 /*===========================================================================
