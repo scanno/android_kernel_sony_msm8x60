@@ -185,7 +185,7 @@ static void __init draw_logo(void)
 int __init logo_init(void)
 {
 	boolean bf_supported;
-	bf_supported = true);
+	bf_supported = true;
 
 	if (!load_565rle_image(INIT_IMAGE_FILE, bf_supported))
 		draw_logo();
