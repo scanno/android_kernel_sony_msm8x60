@@ -506,10 +506,6 @@ void hidraw_report_event(struct hid_device *hid, u8 *data, int len)
 		if (list < (struct hidraw_list *)PAGE_OFFSET
 				|| !(list->node.next))
 			break;
-#ifdef CONFIG_HID_SONY_PS3_CTRL_BT
-		if (list < (struct hidraw_list *)PAGE_OFFSET
-				|| !(list->node.next))
-			break;
 #endif
 		list->buffer[list->head].value = kmemdup(data, len, GFP_ATOMIC);
 		list->buffer[list->head].len = len;

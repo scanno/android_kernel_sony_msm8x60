@@ -565,14 +565,6 @@ struct platform_device msm8960_device_uart_gsbi12 = {
 };
 #endif
 
-struct platform_device msm8960_device_uart_gsbi12 = {
-	.name	= "msm_serial_hsl",
-	.id	= 3,
-	.num_resources	= ARRAY_SIZE(resources_uart_gsbi12),
-	.resource	= resources_uart_gsbi12,
-};
-#endif
-
 /* MSM Video core device */
 #ifdef CONFIG_MSM_BUS_SCALING
 static struct msm_bus_vectors vidc_init_vectors[] = {
