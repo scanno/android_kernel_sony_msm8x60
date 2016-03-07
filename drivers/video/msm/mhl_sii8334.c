@@ -94,10 +94,6 @@ static u8 chip_rev_id;
 static void mhl_sii_chip_init(void);
 static int mhl_sii_hpd_control(int enable);
 
-bool mhl_is_connected(void)
-{
-	return true;
-}
 
 static int mhl_sii_reg_read(u8 addr, u8 off, u8 *buff, u16 len)
 {

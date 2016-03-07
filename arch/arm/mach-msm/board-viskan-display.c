@@ -85,7 +85,8 @@ static struct resource msm_fb_resources[] = {
 
 static void set_mdp_clocks_for_wuxga(void);
 
-static int msm_fb_detect_panel(const char *name)
+static int msm_fb_detect_panel(const char *name, struct platform_disp_info
+			       *disp_info)
 {
 	if (!strncmp(name, HDMI_PANEL_NAME,
 			strnlen(HDMI_PANEL_NAME,

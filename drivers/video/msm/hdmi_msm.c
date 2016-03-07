@@ -1008,27 +1008,6 @@ int hdmi_msm_process_hdcp_interrupts(void)
 	return rc;
 }
 
-#ifdef CONFIG_HDMI_HPD_ENABLED
-static void hdmi_msm_isr_handle_hpd(uint32 hpd_int_ctrl)
-{
-	/*
-	 * Got HPD interrupt. Ack the interrupt and disable any
-	 * further HPD interrupts until we process this interrupt.
-	 */
-	HDMI_OUTP(0x0254, ((hpd_int_ctrl | (BIT(0))) & ~BIT(2)));
-
-	external_common_state->hpd_state =
-		(HDMI_INP(0x0250) & BIT(1)) >> 1;
-
-	DEV_DBG("%s: Queuing work to handle HPD %s event\n", __func__,
-			external_common_state->hpd_state ? "connect" :
-			"disconnect");
-	queue_work(hdmi_work_queue, &hdmi_msm_state->hpd_state_work);
-}
-#else
-static void hdmi_msm_isr_handle_hpd(uint32 hpd_int_ctrl) {}
-#endif
-
 #ifdef CONFIG_HDMI_DDC_ENABLED
 static void hdmi_msm_isr_handle_ddc(uint32 ddc_int_ctrl)
 {
