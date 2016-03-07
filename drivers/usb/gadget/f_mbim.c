@@ -85,7 +85,7 @@ struct f_mbim {
 
 	u8				ctrl_id, data_id;
 
-	struct mbim_ndp_parser_opts	*parser_opts;
+	struct ndp_parser_opts		*parser_opts;
 
 	spinlock_t			lock;
 
@@ -630,10 +630,10 @@ static void mbim_do_notify(struct f_mbim *mbim)
 
 	switch (mbim->not_port.notify_state) {
 
-	case MBIM_NOTIFY_NONE:
+	case NCM_NOTIFY_NONE:
 		return;
 
-	case MBIM_NOTIFY_CONNECT:
+	case NCM_NOTIFY_CONNECT:
 		event->bNotificationType = USB_CDC_NOTIFY_NETWORK_CONNECTION;
 		if (mbim->is_open)
 			event->wValue = cpu_to_le16(1);
@@ -644,10 +644,10 @@ static void mbim_do_notify(struct f_mbim *mbim)
 
 		pr_info("notify connect %s\n",
 			mbim->is_open ? "true" : "false");
-		mbim->not_port.notify_state = MBIM_NOTIFY_NONE;
+		mbim->not_port.notify_state = NCM_NOTIFY_NONE;
 		break;
 
-	case MBIM_NOTIFY_SPEED:
+	case NCM_NOTIFY_SPEED:
 		event->bNotificationType = USB_CDC_NOTIFY_SPEED_CHANGE;
 		event->wValue = cpu_to_le16(0);
 		event->wLength = cpu_to_le16(8);
@@ -660,7 +660,7 @@ static void mbim_do_notify(struct f_mbim *mbim)
 
 		pr_info("notify speed %d\n",
 			mbim_bitrate(cdev->gadget));
-		mbim->not_port.notify_state = MBIM_NOTIFY_CONNECT;
+		mbim->not_port.notify_state = NCM_NOTIFY_CONNECT;
 		break;
 	}
 	event->bmRequestType = 0xA1;
@@ -694,7 +694,7 @@ static void mbim_notify(struct f_mbim *mbim)
 	 */
 	pr_info("dev:%p\n", mbim);
 
-	mbim->not_port.notify_state = MBIM_NOTIFY_SPEED;
+	mbim->not_port.notify_state = NCM_NOTIFY_SPEED;
 	mbim_do_notify(mbim);
 }
 
@@ -729,7 +729,7 @@ static void mbim_notify_complete(struct usb_ep *ep, struct usb_request *req)
 	case -ECONNRESET:
 	case -ESHUTDOWN:
 		/* connection gone */
-		mbim->not_port.notify_state = MBIM_NOTIFY_NONE;
+		mbim->not_port.notify_state = NCM_NOTIFY_NONE;
 		atomic_set(&mbim->not_port.notify_count, 0);
 		pr_info("ESHUTDOWN/ECONNRESET, connection gone");
 		spin_unlock(&mbim->lock);

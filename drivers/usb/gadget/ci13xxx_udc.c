@@ -3345,7 +3345,7 @@ static int ci13xxx_pullup(struct usb_gadget *_gadget, int is_active)
 		*/
 		_ep_nuke(&udc->ep0out);
 		_ep_nuke(&udc->ep0in);
-		hw_device_state(0);
+		hw_device_state(udc, 0);
 	}
 
 	spin_unlock_irqrestore(&udc->lock, flags);
