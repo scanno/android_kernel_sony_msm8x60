@@ -1161,6 +1161,7 @@ struct ext4_sb_info {
 	gid_t s_gid;
 	unsigned short s_dmask;
 	unsigned short s_fmask;
+	unsigned short s_ignore_case;
 #endif
 	unsigned short s_mount_state;
 	unsigned short s_pad;
@@ -2384,6 +2385,9 @@ static inline void ext4_fill_inode(struct super_block *sb, struct inode *inode)
 	}
 	if (EXT4_SB(sb)->s_gid) {
 		inode->i_gid = EXT4_SB(sb)->s_gid;
+	}
+	if (EXT4_SB(sb)->s_ignore_case) {
+		inode->i_ignore_case = EXT4_SB(sb)->s_ignore_case;
 	}
 }
 #endif
