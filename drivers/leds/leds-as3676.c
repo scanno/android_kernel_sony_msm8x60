@@ -214,8 +214,6 @@ struct as3676_data {
 	u8 als_result_backup;
 	u8 in_shutdown;
 	int dls_users;
-	u8 adc_als_empty;
-	s32 adc_als_last;
 };
 
 struct as3676_als_group {
@@ -2092,7 +2090,7 @@ static void as3676_switch_als(struct as3676_data *data, int als_on)
 	AS3676_MODIFY_REG(AS3676_REG_ALS_control, 1, als_on);
 	/* It is important to always start a ADC conversion to prevent AS3676
 	   from drawing too much power when switching off ALS. */
-	AS3676_WRITE_REG(AS3676_REG_ADC_control, 0x80); /* GPIO2/LIGHT */
+	AS3676_WRITE_REG(AS3676_REG_ADC_control, 0x82); /* ALS/GPIO1 */
 	for (i = 0; i < 10; i++) {
 		adc_result = i2c_smbus_read_byte_data(data->client,
 				AS3676_REG_ADC_MSB_result);
@@ -2160,9 +2158,9 @@ static ssize_t as3676_als_result_show(struct device *dev,
 	s32 hw_result = i2c_smbus_read_byte_data(data->client,
 			AS3676_REG_ALS_result);
 
-	/* Start measuring GPIO2/LIGHT */
+	/* Start measuring ALS/GPIO1 */
 	AS3676_LOCK();
-	AS3676_WRITE_REG(AS3676_REG_ADC_control, 0x80);
+	AS3676_WRITE_REG(AS3676_REG_ADC_control, 0x82);
 	for (i = 0; i < 10; i++) {
 		adc_result = i2c_smbus_read_i2c_block_data(data->client,
 			AS3676_REG_ADC_MSB_result, sizeof(adc), adc);
@@ -2170,18 +2168,8 @@ static ssize_t as3676_als_result_show(struct device *dev,
 			break;
 		udelay(10);
 	}
-	if (i < 10 && adc_result == sizeof(adc)) {
+	if (i < 10) {
 		adc_result = (adc[0] << 3) | adc[1];
-		if (adc[0] == 0 && adc[1] <= 1) {
-			if (data->adc_als_empty < 5) {
-				++data->adc_als_empty;
-				dev_info(dev, "%s: IO filtering", __func__);
-				adc_result = data->adc_als_last;
-			}
-		} else if (data->adc_als_empty > 0) {
-			data->adc_als_empty = 0;
-		}
-		data->adc_als_last = adc_result;
 	} else {
 		if (adc_result == sizeof(adc))
 			adc_result  = -EAGAIN;
@@ -2218,52 +2206,24 @@ static ssize_t as3676_adc_als_value_show(struct device *dev,
 {
 	struct as3676_data *data = dev_get_drvdata(dev);
 	int i;
-	s32 als_result, amb_gain, offset;
 	s32 adc_result;
-	u8 adc[2];
 
-	/* Start measuring GPIO2/LIGHT */
+	/* Start measuring ALS/GPIO1 */
 	AS3676_LOCK();
-	AS3676_WRITE_REG(AS3676_REG_ADC_control, 0x80);
+	AS3676_WRITE_REG(AS3676_REG_ADC_control, 0x82);
 	for (i = 0; i < 10; i++) {
-		adc_result = i2c_smbus_read_i2c_block_data(data->client,
-			AS3676_REG_ADC_MSB_result, sizeof(adc), adc);
-		if (!(adc[0] & 0x80) && adc_result == sizeof(adc))
+		adc_result = i2c_smbus_read_byte_data(data->client,
+			AS3676_REG_ADC_MSB_result);
+		if (!(adc_result & 0x80))
 			break;
 		udelay(10);
 	}
-	if (i < 10 && adc_result == sizeof(adc)) {
-		adc_result = (adc[0] << 3) | adc[1];
-		if (adc[0] == 0 && adc[1] <= 1) {
-			if (data->adc_als_empty < 5) {
-				++data->adc_als_empty;
-				dev_info(dev, "%s: IO filtering", __func__);
-				adc_result = data->adc_als_last;
-			}
-		} else if (data->adc_als_empty > 0) {
-			data->adc_als_empty = 0;
-		}
-		data->adc_als_last = adc_result;
-	} else {
-		if (adc_result == sizeof(adc))
-			adc_result  = -EAGAIN;
-		else if (adc_result > 0)
-			adc_result = -ENXIO;
-		dev_err(dev, "%s: IO err %d", __func__, adc_result);
-		AS3676_UNLOCK();
-		return adc_result;
-	}
-	amb_gain = (AS3676_READ_REG(AS3676_REG_ALS_control) & 0x06) >> 1;
-	amb_gain = 1 << amb_gain; /* Have gain ready for calculations */
-	offset = AS3676_READ_REG(AS3676_REG_ALS_offset);
+	adc_result = (adc_result & 0x7F) << 3;
+	adc_result |= i2c_smbus_read_byte_data(data->client,
+			AS3676_REG_ADC_LSB_result) & 0x07;
 	AS3676_UNLOCK();
 
-	/* multiply always before doing divisions to preserve precision.
-	   Overflows should not happen with the values */
-	als_result = (adc_result - 4 * offset) * amb_gain / 4;
-
-	snprintf(buf, PAGE_SIZE, "%u\n", adc_result);
-	return strnlen(buf, PAGE_SIZE);
+	return snprintf(buf, PAGE_SIZE, "%u\n", adc_result);
 }
 
 static ssize_t as3676_adc_als_value_store(struct device *dev,
