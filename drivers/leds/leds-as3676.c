@@ -2201,48 +2201,6 @@ static ssize_t as3676_als_result_store(struct device *dev,
 	return -EINVAL;
 }
 
-static ssize_t as3676_adc_als_value_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	struct as3676_data *data = dev_get_drvdata(dev);
-	int i;
-	s32 als_result, amb_gain, offset;
-	s32 adc_result;
-
-	/* Start measuring GPIO2/LIGHT */
-	AS3676_LOCK();
-	AS3676_WRITE_REG(AS3676_REG_ADC_control, 0x80);
-	for (i = 0; i < 10; i++) {
-		adc_result = i2c_smbus_read_byte_data(data->client,
-				AS3676_REG_ADC_MSB_result);
-		if (!(adc_result & 0x80))
-			break;
-		udelay(10);
-	}
-	adc_result <<= 3;
-	adc_result |= i2c_smbus_read_byte_data(data->client,
-			AS3676_REG_ADC_LSB_result);
-
-	amb_gain = (AS3676_READ_REG(AS3676_REG_ALS_control) & 0x06) >> 1;
-	amb_gain = 1 << amb_gain; /* Have gain ready for calculations */
-	offset = AS3676_READ_REG(AS3676_REG_ALS_offset);
-	AS3676_UNLOCK();
-
-	/* multiply always before doing divisions to preserve precision.
-	   Overflows should not happen with the values */
-	als_result = (adc_result - 4 * offset) * amb_gain / 4;
-
-	snprintf(buf, PAGE_SIZE, "%u\n", adc_result);
-	return strnlen(buf, PAGE_SIZE);
-}
-
-static ssize_t as3676_adc_als_value_store(struct device *dev,
-				struct device_attribute *attr,
-				const char *buf, size_t size)
-{
-	return -EINVAL;
-}
-
 static void as3676_dim_work(struct work_struct *work)
 {
 	struct as3676_data *data =
@@ -2509,7 +2467,6 @@ static struct device_attribute as3676_attributes[] = {
 	AS3676_ATTR(audio_on),
 	AS3676_ATTR(audio_color),
 	AS3676_ATTR(ldo_on),
-	AS3676_ATTR(adc_als_value),
 	__ATTR_NULL
 };
 
